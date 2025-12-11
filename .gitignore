@@ -34,3 +34,4 @@ go.work.sum
 
 # Custom caddy binary
 /caddy/caddy
+outline-ss-server-data
