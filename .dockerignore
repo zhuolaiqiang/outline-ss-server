@@ -1,0 +1,11 @@
+.git
+.vscode
+.trae
+**/*.test
+**/*_test.go
+bin
+dist
+build
+*.log
+**/.DS_Store
+

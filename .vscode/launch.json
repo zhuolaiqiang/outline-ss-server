@@ -1,0 +1,75 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Outline Server (args)",
+      "type": "go",
+      "request": "launch",
+      "mode": "debug",
+      "program": "${workspaceFolder}/cmd/outline-ss-server",
+      "cwd": "${workspaceFolder}",
+      // "console": "integratedTerminal",
+      "buildFlags": [
+        "-ldflags=-X main.version=${input:buildVersion}"
+      ],
+      "args": [
+        "-config",
+        "${input:configPath}",
+        "-metrics",
+        "${input:metricsAddr}",
+        "-ip_country_db",
+        "${input:ipCountryDB}",
+        "-ip_asn_db",
+        "${input:ipASNDB}",
+        "-udptimeout",
+        "${input:udpTimeout}",
+        "-replay_history",
+        "${input:replayHistory}"
+      ]
+    }
+  ],
+  "inputs": [
+    {
+      "id": "buildVersion",
+      "type": "promptString",
+      "description": "Binary version (injected via ldflags)",
+      "default": "dev"
+    },
+    {
+      "id": "configPath",
+      "type": "promptString",
+      "description": "Config file path",
+      "default": "${workspaceFolder}/cmd/outline-ss-server/config_example.yml"
+    },
+    {
+      "id": "metricsAddr",
+      "type": "promptString",
+      "description": "Prometheus metrics address (e.g. :9090)",
+      "default": ":9090"
+    },
+    {
+      "id": "ipCountryDB",
+      "type": "promptString",
+      "description": "Path to country MMDB",
+      "default": ""
+    },
+    {
+      "id": "ipASNDB",
+      "type": "promptString",
+      "description": "Path to ASN MMDB",
+      "default": ""
+    },
+    {
+      "id": "udpTimeout",
+      "type": "promptString",
+      "description": "UDP timeout (e.g. 5m, 30s)",
+      "default": "5m"
+    },
+    {
+      "id": "replayHistory",
+      "type": "promptString",
+      "description": "Replay buffer size",
+      "default": "10000"
+    }
+  ]
+}

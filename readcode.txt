@@ -1,0 +1,14 @@
+# 这里的version写死了是dev，在线上环境 应该做做处理，比如我用docker编译和发布
+问题概述
+
+- 当前 version 在 cmd/outline-ss-server/main.go:53 定义为 var version = "dev" ，用于打印 -version 和打点 serverMetrics.SetVersion(version) （ cmd/outline-ss-server/main.go:520 ）。
+- 注释已说明该值通常由构建时的 ldflags 注入（goreleaser 默认做法）。
+推荐做法
+
+- 通过构建注入覆盖 main.version ，不要在源码里改常量。
+- 在 Docker 或本地构建时传入 -ldflags "-X main.version=..." 。
+Docker 构建示例
+
+- 多阶段构建注入版本字符串：
+  - 可用环境变量或 Git 信息生成版本号。
+  
