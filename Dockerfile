@@ -29,7 +29,7 @@ COPY --from=builder /app/bin/outline-ss-server /usr/local/bin/outline-ss-server
 # Default config inside image
 COPY cmd/outline-ss-server/config_example.yml /etc/outline/config.yml
 
-USER nonroot
+USER root
 EXPOSE 9000/tcp 9000/udp 9001/tcp 9001/udp 9090/tcp
 ENTRYPOINT ["/usr/local/bin/outline-ss-server"]
 # Default runtime arguments (override by providing args to docker run)
