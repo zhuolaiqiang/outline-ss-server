@@ -24,7 +24,8 @@
         "-udptimeout",
         "${input:udpTimeout}",
         "-replay_history",
-        "${input:replayHistory}"
+        "${input:replayHistory}",
+        "-verbose"
       ]
     }
   ],

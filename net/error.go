@@ -16,9 +16,9 @@ package net
 
 type ConnectionError struct {
 	// TODO: create status enums and move to metrics.go
-	Status  string
-	Message string
-	Cause   error
+	Status  string // 也就是所谓的 "错误码" 或 "错误类别"
+	Message string // 给开发人员看的人类可读描述
+	Cause   error  // 底层的原始错误 (Go标准库抛出的错误)
 }
 
 func NewConnectionError(status, message string, cause error) *ConnectionError {

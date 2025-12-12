@@ -56,7 +56,7 @@ var version = "dev"
 const tcpReadTimeout time.Duration = 59 * time.Second
 
 // A UDP NAT timeout of at least 5 minutes is recommended in RFC 4787 Section 4.3.
-const defaultNatTimeout time.Duration = 5 * time.Minute
+const defaultNatTimeout time.Duration = 2 * time.Minute
 
 func init() {
 	logHandler = tint.NewHandler(
@@ -84,6 +84,9 @@ type OutlineServer struct {
 	replayCache    service.ReplayCache
 }
 
+// 本函数可能多次被调用:
+// 1) 启动的时候正常调用
+// 2) 当收到更新配置的信号后再次被调用
 func (s *OutlineServer) loadConfig(filename string) error {
 	configData, err := os.ReadFile(filename)
 	if err != nil {
@@ -217,18 +220,21 @@ func (s *OutlineServer) runConfig(config Config) (func() error, error) {
 			// Start configured web servers.
 			webServers := make(map[string]*http.ServeMux)
 			for _, srvConfig := range config.Web.Servers {
+				// 这里是为了防止配置重复的web.service.ID
 				if _, exists := webServers[srvConfig.ID]; exists {
 					return fmt.Errorf("web server with ID `%s` already exists", srvConfig.ID)
 				}
 				mux := http.NewServeMux()
 				for _, addr := range srvConfig.Listeners {
-					server := &http.Server{Addr: addr, Handler: mux}
+					// 创建http服务器 但是还没有开始监听tcp，监听通过外部传入
+					server := &http.Server{Addr: addr, Handler: mux} // 这里很奇怪 所有的web服务器都用的是同一个mux
 					ln, err := lnSet.ListenStream(addr)
 					if err != nil {
 						return fmt.Errorf("failed to listen on %s: %w", addr, err)
 					}
-					go func() {
+					go func() { // 开启一个新gr处理web服务器的监听
 						defer server.Shutdown(context.Background())
+						// 会阻塞在这里 处理http服务器的请求
 						err := server.Serve(&HTTPStreamListener{ln})
 						if err != nil && !errors.Is(http.ErrServerClosed, err) && !errors.Is(net.ErrClosed, err) {
 							slog.Error("Failed to run web server.", "err", err, "ID", srvConfig.ID)
@@ -317,21 +323,24 @@ func (s *OutlineServer) runConfig(config Config) (func() error, error) {
 					}()),
 				)
 				for _, cfg := range serviceConfig.Listeners {
-					if cfg.TCP != nil {
+					if cfg.TCP != nil { // 开始建立tcp监听 并处理tcp连接
 						ln, err := lnSet.ListenStream(cfg.TCP.Address)
 						if err != nil {
 							return err
 						}
 						logger.Info("TCP service started.", "address", ln.Addr().String())
+
+						// fork a new gr to handle tcp connections
 						go service.StreamServe(ln.AcceptStream, func(ctx context.Context, conn transport.StreamConn) {
 							streamHandler.HandleStream(ctx, conn, s.serviceMetrics.AddOpenTCPConnection(conn))
 						})
-					} else if cfg.UDP != nil {
+					} else if cfg.UDP != nil { // 开始建立udp监听 并处理udp数据包
 						pc, err := lnSet.ListenPacket(cfg.UDP.Address)
 						if err != nil {
 							return err
 						}
 						logger.Info("UDP service started.", "address", pc.LocalAddr().String())
+						// fork a new gr to handle udp connections
 						go service.PacketServe(pc, func(ctx context.Context, conn net.Conn) {
 							associationHandler.HandleAssociation(ctx, conn, s.serviceMetrics.AddOpenUDPAssociation(conn))
 						}, s.serverMetrics)
@@ -435,7 +444,7 @@ func RunOutlineServer(filename string, natTimeout time.Duration, serverMetrics *
 	}
 	sigHup := make(chan os.Signal, 1)
 	signal.Notify(sigHup, syscall.SIGHUP)
-	go func() {
+	go func() { // 单独gr监听更新配置信号
 		for range sigHup {
 			slog.Info("SIGHUP received. Loading config.", "config", filename)
 			if err := server.loadConfig(filename); err != nil {
@@ -528,6 +537,7 @@ func main() {
 	_, err = RunOutlineServer(flags.ConfigFile, flags.natTimeout, serverMetrics, serviceMetrics, flags.replayHistory)
 	if err != nil {
 		slog.Error("Server failed to start. Aborting.", "err", err)
+		return
 	}
 
 	sigCh := make(chan os.Signal, 1)

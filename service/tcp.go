@@ -223,13 +223,13 @@ type StreamHandleFunc func(ctx context.Context, conn transport.StreamConn)
 // via their [context.Context]. StreamServe will return after all pending handlers return.
 func StreamServe(accept StreamAcceptFunc, streamHandle StreamHandleFunc) {
 	var running sync.WaitGroup
-	defer running.Wait()
-	ctx, contextCancel := context.WithCancel(context.Background())
+	defer running.Wait()                                           // 等待所有tcp连接数据处理完毕后，优雅退出
+	ctx, contextCancel := context.WithCancel(context.Background()) // 告诉tcp连接处理goroutine，需要退出了
 	defer contextCancel()
-	for {
-		clientConn, err := accept()
+	for { // 无线循环处理tcp连接
+		clientConn, err := accept() // 接收tcp连接
 		if err != nil {
-			if errors.Is(err, net.ErrClosed) {
+			if errors.Is(err, net.ErrClosed) { // listener关闭，退出循环.一般是调用listener.Close()导致的
 				break
 			}
 			slog.Warn("Accept failed. Continuing to listen.", "err", err)
@@ -237,9 +237,9 @@ func StreamServe(accept StreamAcceptFunc, streamHandle StreamHandleFunc) {
 		}
 
 		running.Add(1)
-		go func() {
+		go func() { // 新启动一个gr处理tcp连接和数据
 			defer running.Done()
-			defer clientConn.Close()
+			defer clientConn.Close() // 当出现什么错误 streamHandle退出，关闭tcp连接
 			defer func() {
 				if r := recover(); r != nil {
 					slog.Warn("Panic in TCP handler. Continuing to listen.", "err", r)
@@ -283,7 +283,15 @@ func getProxyRequest(clientConn transport.StreamConn) (string, error) {
 	return tgtAddr.String(), nil
 }
 
-func proxyConnection(l *slog.Logger, ctx context.Context, dialer transport.StreamDialer, tgtAddr string, clientConn transport.StreamConn) *onet.ConnectionError {
+// ctx context.Context
+// 作用: 控制生命周期和超时。
+// 解决问题: 如果服务器想优雅关闭，或者用户取消了请求，通过 ctx 可以通知拨号操作（dialer.DialStream）立即停止，释放资源。
+func proxyConnection(l *slog.Logger,
+	ctx context.Context,
+	dialer transport.StreamDialer,
+	tgtAddr string,
+	clientConn transport.StreamConn) *onet.ConnectionError {
+
 	tgtConn, dialErr := dialer.DialStream(ctx, tgtAddr)
 	if dialErr != nil {
 		// We don't drain so dial errors and invalid addresses are communicated quickly.
@@ -293,11 +301,11 @@ func proxyConnection(l *slog.Logger, ctx context.Context, dialer transport.Strea
 	l.LogAttrs(nil, slog.LevelDebug, "Proxy connection.", slog.String("client", clientConn.RemoteAddr().String()), slog.String("target", tgtConn.RemoteAddr().String()))
 
 	fromClientErrCh := make(chan error)
-	go func() {
-		_, fromClientErr := io.Copy(tgtConn, clientConn)
+	go func() { // 启动一个 goroutine 来处理从 clientConn 到 tgtConn 的数据复制
+		_, fromClientErr := io.Copy(tgtConn, clientConn) // 将clientConn的数据复制到tgtConn
 		if fromClientErr != nil {
 			// Drain to prevent a close in the case of a cipher error.
-			io.Copy(io.Discard, clientConn)
+			io.Copy(io.Discard, clientConn) // 实现零拷贝，具体原理可以ai
 		}
 		clientConn.CloseRead()
 		// Send FIN to target.
@@ -323,21 +331,28 @@ func proxyConnection(l *slog.Logger, ctx context.Context, dialer transport.Strea
 
 func (h *streamHandler) handleConnection(ctx context.Context, outerConn transport.StreamConn, connMetrics TCPConnMetrics, proxyMetrics *metrics.ProxyMetrics) *onet.ConnectionError {
 	// Set a deadline to receive the address to the target.
+	// 设定一个 Deadline（默认 59秒）
+	//目的：防止恶意客户端建立连接后“占坑不拉屎”（只连接不发数据）。如果指定时间内没把鉴权数据发完，服务器会强制断开。
 	readDeadline := time.Now().Add(h.readTimeout)
 	if deadline, ok := ctx.Deadline(); ok {
 		outerConn.SetDeadline(deadline)
+		// 如果 Context 本身有更短的超时，就取最小值
 		if deadline.Before(readDeadline) {
 			readDeadline = deadline
 		}
 	}
 	outerConn.SetReadDeadline(readDeadline)
 
+	// 尝试用所有配置的密码去试开这把锁
 	id, innerConn, authErr := h.authenticate(outerConn)
 	if authErr != nil {
 		// Drain to protect against probing attacks.
+		// 鉴权失败！启动“装傻模式”（Absorb Probe）
+		// 假装还在读数据，实际上是在消耗攻击者的时间和带宽，最后返回错误
 		h.absorbProbe(outerConn, connMetrics, authErr.Status, proxyMetrics)
 		return authErr
 	}
+	// 鉴权成功！记下是谁进来了
 	connMetrics.AddAuthentication(id)
 
 	// Read target address and dial it.
@@ -350,14 +365,17 @@ func (h *streamHandler) handleConnection(ctx context.Context, outerConn transpor
 		return onet.NewConnectionError("ERR_READ_ADDRESS", "Failed to get target address", err)
 	}
 
-	dialer := transport.FuncStreamDialer(func(ctx context.Context, addr string) (transport.StreamConn, error) {
+	af := func(ctx context.Context, addr string) (transport.StreamConn, error) {
 		tgtConn, err := h.dialer.DialStream(ctx, tgtAddr)
 		if err != nil {
 			return nil, err
 		}
+		// 统计发送和接收到目标服务器的流量数据
 		tgtConn = metrics.MeasureConn(tgtConn, &proxyMetrics.ProxyTarget, &proxyMetrics.TargetProxy)
 		return tgtConn, nil
-	})
+	}
+	dialer := transport.FuncStreamDialer(af)
+
 	return proxyConnection(h.logger, ctx, dialer, tgtAddr, innerConn)
 }
 
@@ -365,6 +383,7 @@ func (h *streamHandler) handleConnection(ctx context.Context, outerConn transpor
 // `proxyMetrics` is a pointer because its value is being mutated by `clientConn`.
 func (h *streamHandler) absorbProbe(clientConn io.ReadCloser, connMetrics TCPConnMetrics, status string, proxyMetrics *metrics.ProxyMetrics) {
 	// This line updates proxyMetrics.ClientProxy before it's used in AddTCPProbe.
+	// 假装还在读数据，实际上是在消耗攻击者的时间和带宽，最后返回错误
 	_, drainErr := io.Copy(io.Discard, clientConn) // drain socket
 	drainResult := drainErrToString(drainErr)
 	h.logger.LogAttrs(nil, slog.LevelDebug, "Drain error.", slog.Any("err", drainErr), slog.String("result", drainResult))

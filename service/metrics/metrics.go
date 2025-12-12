@@ -21,18 +21,19 @@ import (
 )
 
 type ProxyMetrics struct {
-	ClientProxy int64
-	ProxyTarget int64
-	TargetProxy int64
-	ProxyClient int64
+	ClientProxy int64 // 1. 上行入站: 客户端发给代理的数据量 (加密的)
+	ProxyTarget int64 // 2. 上行出站: 代理发给目标网站的数据量 (解密后)
+	TargetProxy int64 // 3. 下行入站: 目标网站发回给代理的数据量 (明文)
+	ProxyClient int64 // 4. 下行出站: 代理发回给客户端的数据量 (加密后)
 }
 
 type measuredConn struct {
-	transport.StreamConn
-	io.WriterTo
-	readCount *int64
-	io.ReaderFrom
-	writeCount *int64
+	transport.StreamConn // 1. 嵌入原始连接 (继承所有方法)
+	io.WriterTo          // 显式声明实现 WriterTo 接口
+	io.ReaderFrom        // 显式声明实现 ReaderFrom 接口
+
+	readCount  *int64 // 指向外部计数器的指针 (统计读了多少字节)
+	writeCount *int64 // 指向外部计数器的指针 (统计写了多少字节)
 }
 
 func (c *measuredConn) Read(b []byte) (int, error) {
