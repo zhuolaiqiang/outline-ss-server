@@ -70,9 +70,11 @@ func debugUDP(l *slog.Logger, msg string, attrs ...slog.Attr) {
 
 // Decrypts src into dst. It tries each cipher until it finds one that authenticates
 // correctly. dst and src must not overlap.
+// TODO:在这里要做优化，每次都要遍历cipherList。当用户达到10000的时候 性能就会下降。可以用map[clientip]CipherEntry.但是要处理线程问题
 func findAccessKeyUDP(clientIP netip.Addr, dst, src []byte, cipherList CipherList, l *slog.Logger) ([]byte, string, *shadowsocks.EncryptionKey, error) {
 	// Try each cipher until we find one that authenticates successfully. This assumes that all ciphers are AEAD.
 	// We snapshot the list because it may be modified while we use it.
+	// 虽然这里做了优化，但是还是不够，如果用户达到10000的时候 性能就会下降。
 	snapshot := cipherList.SnapshotForClientIP(clientIP)
 	for ci, entry := range snapshot {
 		id, cryptoKey := entry.Value.(*CipherEntry).ID, entry.Value.(*CipherEntry).CryptoKey
@@ -174,12 +176,13 @@ func (h *associationHandler) HandleAssociation(ctx context.Context, clientConn n
 
 			var payload []byte
 			var tgtAddr net.Addr
-			if targetConn == nil {
+			if targetConn == nil { // 首包 还没有和目标服务器建立连接
 				ip := clientConn.RemoteAddr().(*net.UDPAddr).AddrPort().Addr()
 				var textData []byte
 				var keyID string
 				textLazySlice := readBufPool.LazySlice()
 				unpackStart := time.Now()
+				// 查找解密组件
 				textData, keyID, cryptoKey, err = findAccessKeyUDP(ip, textLazySlice.Acquire(), pkt, h.ciphers, h.logger)
 				timeToCipher := time.Since(unpackStart)
 				textLazySlice.Release()
@@ -191,22 +194,27 @@ func (h *associationHandler) HandleAssociation(ctx context.Context, clientConn n
 				assocMetrics.AddAuthentication(keyID)
 
 				var onetErr *onet.ConnectionError
+				// 作用是从 Shadowsocks 解密后的数据中分离出目标地址和实际有效载荷。
 				if payload, tgtAddr, onetErr = h.extractPayloadAndDestination(textData); onetErr != nil {
 					return onetErr
 				}
 
 				// Create the target connection.
+				// 监听一个本地udp端口，作为和目标服务器的udp通道
 				targetConn, err = h.targetListener.ListenPacket(ctx)
 				if err != nil {
 					return onet.NewConnectionError("ERR_CREATE_SOCKET", "Failed to create a `PacketConn`", err)
 				}
 				l = l.With(slog.Any("tgtListener", targetConn.LocalAddr()))
 				go func() {
+					// 开始处理从target到client的UDP数据.会阻塞在这里。这里要发送给目标服务器首包前做处理，以免目标服务器
+					// 没有准备好就收到了数据，导致目标服务器无法处理UDP数据。
 					relayTargetToClient(targetConn, clientConn, cryptoKey, assocMetrics, l)
 					clientConn.Close()
 				}()
-			} else {
+			} else { // 续包.已经和服务器建立连接，这里解密
 				unpackStart := time.Now()
+				// 作用是解密 Shadowsocks 加密的数据。
 				textData, err := shadowsocks.Unpack(nil, pkt, cryptoKey)
 				timeToCipher := time.Since(unpackStart)
 				h.ssm.AddCipherSearch(err == nil, timeToCipher)
@@ -216,12 +224,14 @@ func (h *associationHandler) HandleAssociation(ctx context.Context, clientConn n
 				}
 
 				var onetErr *onet.ConnectionError
+				// 作用是从 Shadowsocks 解密后的数据中分离出目标地址和实际有效载荷。
 				if payload, tgtAddr, onetErr = h.extractPayloadAndDestination(textData); onetErr != nil {
 					return onetErr
 				}
 			}
 
 			debugUDP(l, "Proxy exit.")
+			// 开始处理从client到target的UDP数据.会阻塞在这里.不论是首包还是续包都写入targetConn
 			proxyTargetBytes, err = targetConn.WriteTo(payload, tgtAddr)
 			if err != nil {
 				return ensureConnectionError(err, "ERR_WRITE", "Failed to write to target")
@@ -234,6 +244,9 @@ func (h *associationHandler) HandleAssociation(ctx context.Context, clientConn n
 			debugUDP(l, "Error", slog.String("msg", connError.Message), slog.Any("cause", connError.Cause))
 			status = connError.Status
 		}
+		// 记录UDP数据包的统计信息
+		// clientProxyBytes: 从客户端接收到的数据包大小
+		// proxyTargetBytes: 发送到目标服务器的数据包大小
 		assocMetrics.AddPacketFromClient(status, int64(clientProxyBytes), int64(proxyTargetBytes))
 		if targetConn == nil {
 			// If there's still no target connection, we didn't authenticate. Break out of handling the
@@ -245,6 +258,7 @@ func (h *associationHandler) HandleAssociation(ctx context.Context, clientConn n
 
 // extractPayloadAndDestination processes a decrypted Shadowsocks UDP packet and
 // extracts the payload data and destination address.
+// 作用是从 Shadowsocks 解密后的数据中分离出目标地址和实际有效载荷。
 func (h *associationHandler) extractPayloadAndDestination(textData []byte) ([]byte, net.Addr, *onet.ConnectionError) {
 	tgtAddr := socks.SplitAddr(textData)
 	if tgtAddr == nil {
@@ -300,7 +314,7 @@ func PacketServe(clientConn net.PacketConn, assocHandle AssociationHandleFunc, m
 				assoc = &association{
 					pc:         clientConn,
 					clientAddr: clientAddr,
-					readCh:     make(chan *packet, 20),
+					readCh:     make(chan *packet, 20), // 从原理的5个修改为20个
 					doneCh:     make(chan struct{}),
 				}
 				if err != nil {
@@ -590,6 +604,9 @@ func relayTargetToClient(targetConn net.PacketConn, clientConn io.Writer, crypto
 		if expired {
 			break
 		}
+		// 记录UDP数据包的统计信息
+		// targetProxyBytes: 从目标服务器接收到的数据包大小
+		// proxyClientBytes: 发送到客户端的数据包大小
 		m.AddPacketFromTarget(status, int64(targetProxyBytes), int64(proxyClientBytes))
 	}
 }

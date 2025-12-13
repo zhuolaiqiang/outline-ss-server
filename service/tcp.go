@@ -72,6 +72,7 @@ func debugTCP(l *slog.Logger, template string, cipherID string, attr slog.Attr) 
 // required = saltSize + 2 + cipher.TagSize, the number of bytes needed to authenticate the connection.
 const bytesForKeyFinding = 50
 
+// TODO:这需要做优化，当用户达到10000的时候 性能就会下降。
 func findAccessKey(clientReader io.Reader, clientIP netip.Addr, cipherList CipherList, l *slog.Logger) (*CipherEntry, io.Reader, []byte, time.Duration, error) {
 	// We snapshot the list because it may be modified while we use it.
 	ciphers := cipherList.SnapshotForClientIP(clientIP)

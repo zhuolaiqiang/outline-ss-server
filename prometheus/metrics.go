@@ -332,7 +332,13 @@ func (c *udpServiceMetrics) Collect(ch chan<- prometheus.Metric) {
 	c.packetsFromClientPerLocation.Collect(ch)
 }
 
-func (c *udpServiceMetrics) addPacketFromClient(status string, clientProxyBytes, proxyTargetBytes int64, accessKey string, clientInfo ipinfo.IPInfo) {
+func (c *udpServiceMetrics) addPacketFromClient(
+	status string,
+	clientProxyBytes,
+	proxyTargetBytes int64,
+	accessKey string,
+	clientInfo ipinfo.IPInfo) {
+
 	c.packetsFromClientPerLocation.WithLabelValues(clientInfo.CountryCode.String(), asnLabel(clientInfo.ASN.Number), clientInfo.ASN.Organization, status).Inc()
 	c.proxyCollector.addClientTarget(clientProxyBytes, proxyTargetBytes, accessKey, clientInfo)
 }
