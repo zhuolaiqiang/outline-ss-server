@@ -133,6 +133,9 @@ func (h *associationHandler) SetTargetPacketListener(targetListener transport.Pa
 	h.targetListener = targetListener
 }
 
+// 处理UDP数据的核心函数
+// clientConn: 是一个association实例，封装了服务端的udp listener 、客户端的udp conn、客户端的udp addr
+// assocMetrics: 用于记录UDP关联的指标
 func (h *associationHandler) HandleAssociation(ctx context.Context, clientConn net.Conn, assocMetrics UDPAssociationMetrics) {
 	l := h.logger.With(slog.Any("client", clientConn.RemoteAddr()))
 
@@ -325,7 +328,7 @@ func PacketServe(clientConn net.PacketConn, assocHandle AssociationHandleFunc, m
 			}
 		}()
 		if expired {
-			break
+			break // 如果读取失败，说明监听的UDP socket已经关闭，退出循环
 		}
 	}
 }
