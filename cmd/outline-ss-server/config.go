@@ -93,7 +93,7 @@ func (c *ListenerConfig) UnmarshalYAML(value *yaml.Node) error {
 	}
 	lnTypeStr, ok := rawType.(string)
 	if !ok {
-		return fmt.Errorf("`type` is not a string, but %T", rawType)	
+		return fmt.Errorf("`type` is not a string, but %T", rawType)
 	}
 	lnType := ListenerType(lnTypeStr)
 	delete(raw, "type")
@@ -181,12 +181,13 @@ type DialerConfig struct {
 }
 
 type KeyConfig struct {
-	ID          string
-	Cipher      string
-	Secret      string
-	SpeedLimit  int    // 限速多少，单位是字节/秒，-1 表示不限制
-	InvalidUser bool   //是否为无效用户，比如用户的套餐用完，业务服务器可以将这里设置为false，这样就会拒绝用户的连接
-	Remark      string // 备注，比如用户的套餐用完，业务服务器可以将这里设置为"套餐用完"，这样就会在用户连接时显示这个备注
+	ID     string
+	Cipher string
+	Secret string
+	// TODO:需要完成的
+	// SpeedLimit  int    // 限速多少，单位是字节/秒，-1 表示不限制
+	// InvalidUser bool   //是否为无效用户，比如用户的套餐用完，业务服务器可以将这里设置为false，这样就会拒绝用户的连接
+	// Remark      string // 备注，比如用户的套餐用完，业务服务器可以将这里设置为"套餐用完"，这样就会在用户连接时显示这个备注
 }
 
 type LegacyKeyServiceConfig struct {

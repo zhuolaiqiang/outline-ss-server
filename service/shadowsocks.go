@@ -71,7 +71,6 @@ func NewShadowsocksHandlers(opts ...Option) (StreamHandler, AssociationHandler) 
 		tcpShadowsocksConnMetrics = &ssConnMetrics{s.metrics.AddTCPCipherSearch}
 		udpShadowsocksConnMetrics = &ssConnMetrics{s.metrics.AddUDPCipherSearch}
 	}
-	// TODO: Register initial data metrics at zero.
 	sh := NewStreamHandler(
 		NewShadowsocksStreamAuthenticator(s.ciphers, s.replayCache, tcpShadowsocksConnMetrics, s.logger),
 		tcpReadTimeout,

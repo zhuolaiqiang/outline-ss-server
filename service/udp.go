@@ -292,7 +292,6 @@ func PacketServe(clientConn net.PacketConn, assocHandle AssociationHandleFunc, m
 			}
 			pkt := &packet{payload: buffer[:n], done: lazySlice.Release}
 
-			// TODO(#19): Include server address in the NAT key as well.
 			assoc := nm.Get(clientAddr.String())
 			if assoc == nil {
 				assoc = &association{
@@ -323,7 +322,6 @@ func PacketServe(clientConn net.PacketConn, assocHandle AssociationHandleFunc, m
 			case assoc.readCh <- pkt:
 			default:
 				slog.Debug("Dropping packet due to full read queue")
-				// TODO: Add a metric to track number of dropped packets.
 			}
 		}()
 		if expired {

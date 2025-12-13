@@ -21,6 +21,5 @@ import (
 )
 
 func noopLogger() *slog.Logger {
-	// TODO: Use built-in no-op log level when available: https://go.dev/issue/62005
 	return slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.Level(math.MaxInt)}))
 }

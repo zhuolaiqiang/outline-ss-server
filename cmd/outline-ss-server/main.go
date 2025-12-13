@@ -407,7 +407,6 @@ func (s *OutlineServer) runConfig(config Config) (func() error, error) {
 	}
 	return func() error {
 		slog.Info("Stopping running config.")
-		// TODO(sbruens): Actually wait for all handlers to be stopped, e.g. by
 		// using a https://pkg.go.dev/sync#WaitGroup.
 		stopCh <- struct{}{}
 		stopErr := <-stopErrCh
@@ -455,7 +454,6 @@ func RunOutlineServer(filename string, natTimeout time.Duration, serverMetrics *
 	return server, nil
 }
 
-// TODO: Create a dedicated `ClientConn` struct with `ClientAddr` and `Conn`.
 // replaceAddrConn overrides a [transport.StreamConn]'s remote address handling.
 type replaceAddrConn struct {
 	transport.StreamConn

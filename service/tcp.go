@@ -84,7 +84,6 @@ func findAccessKey(clientReader io.Reader, clientIP netip.Addr, cipherList Ciphe
 	entry, elt := findEntry(firstBytes, ciphers, l)
 	timeToCipher := time.Since(findStartTime)
 	if entry == nil {
-		// TODO: Ban and log client IPs with too many failures too quick to protect against DoS.
 		return nil, clientReader, nil, timeToCipher, fmt.Errorf("could not find valid TCP cipher")
 	}
 
@@ -115,7 +114,6 @@ func findEntry(firstBytes []byte, ciphers []*list.Element, l *slog.Logger) (*Cip
 type StreamAuthenticateFunc func(clientConn transport.StreamConn) (string, transport.StreamConn, *onet.ConnectionError)
 
 // NewShadowsocksStreamAuthenticator creates a stream authenticator that uses Shadowsocks.
-// TODO(fortuna): Offer alternative transports.
 func NewShadowsocksStreamAuthenticator(ciphers CipherList, replayCache *ReplayCache, metrics ShadowsocksConnMetrics, l *slog.Logger) StreamAuthenticateFunc {
 	if metrics == nil {
 		metrics = &NoOpShadowsocksConnMetrics{}
@@ -272,7 +270,6 @@ func (h *streamHandler) HandleStream(ctx context.Context, clientConn transport.S
 }
 
 func getProxyRequest(clientConn transport.StreamConn) (string, error) {
-	// TODO(fortuna): Use Shadowsocks proxy, HTTP CONNECT or SOCKS5 based on first byte:
 	// case 1, 3 or 4: Shadowsocks (address type)
 	// case 5: SOCKS5 (protocol version)
 	// case "C": HTTP CONNECT (first char of method)

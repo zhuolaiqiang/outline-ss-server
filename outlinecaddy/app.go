@@ -85,9 +85,7 @@ func (app *OutlineApp) Provision(ctx caddy.Context) error {
 	if err := app.defineMetrics(); err != nil {
 		app.logger.Error("failed to define Prometheus metrics", "err", err)
 	}
-	// TODO: Set version at build time.
 	app.buildInfo.WithLabelValues("dev").Set(1)
-	// TODO: Add replacement metrics for `shadowsocks_keys` and `shadowsocks_ports`.
 
 	ctx = ctx.WithValue(replayCacheCtxKey, app.replayCache)
 	ctx = ctx.WithValue(metricsCtxKey, app.metrics)
@@ -113,7 +111,6 @@ func (app *OutlineApp) defineMetrics() error {
 		return err
 	}
 
-	// TODO: Allow the configuration of ip2info.
 	metrics, err := outline_prometheus.NewServiceMetrics(nil)
 	if err != nil {
 		return err

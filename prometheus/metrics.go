@@ -457,7 +457,6 @@ type serviceMetrics struct {
 	tunnelTimeMetrics *tunnelTimeMetrics
 
 	// NOTE: New metrics need to be added to `NewServiceMetrics()`, `Describe()` and `Collect()`.
-	// TODO: Add time to first byte.
 }
 
 var _ prometheus.Collector = (*serviceMetrics)(nil)
@@ -508,8 +507,6 @@ func (m *serviceMetrics) getIPInfoFromAddr(addr net.Addr) ipinfo.IPInfo {
 	}
 	return ipInfo
 }
-
-// TODO: Split TCP and UDP metrics.
 
 func (m *serviceMetrics) AddOpenTCPConnection(clientConn net.Conn) service.TCPConnMetrics {
 	clientAddr := clientConn.RemoteAddr()

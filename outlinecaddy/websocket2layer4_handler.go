@@ -139,7 +139,6 @@ func (h WebSocketHandler) ServeHTTP(w http.ResponseWriter, r *http.Request, _ ca
 	return h.compiledHandler.Handle(cx, nil)
 }
 
-// TODO: Create a dedicated `ClientConn` struct with `ClientAddr` and `Conn`.
 // replaceAddrConn overrides a [transport.StreamConn]'s remote address handling.
 type replaceAddrConn struct {
 	transport.StreamConn
