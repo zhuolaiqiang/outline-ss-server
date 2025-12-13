@@ -297,7 +297,7 @@ func PacketServe(clientConn net.PacketConn, assocHandle AssociationHandleFunc, m
 				assoc = &association{
 					pc:         clientConn,
 					clientAddr: clientAddr,
-					readCh:     make(chan *packet, 5),
+					readCh:     make(chan *packet, 20),
 					doneCh:     make(chan struct{}),
 				}
 				if err != nil {
