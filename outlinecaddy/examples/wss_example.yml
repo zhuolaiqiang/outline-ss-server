@@ -1,6 +1,9 @@
 # WSS 示例配置 (使用 outlinecaddy)
 # 需将 example.com 替换为你的真实域名
 ---
+admin:
+  disabled: true # 禁用 admin API 以避免端口 2019 冲突
+
 logging:
   logs:
     default:
@@ -8,6 +11,15 @@ logging:
       encoder:
         format: console
 apps:
+  tls:
+    automation:
+      policies:
+        - subjects:
+            - os1.yingsun.dpdns.org
+          issuers:
+            - module: zerossl # 切换到 ZeroSSL 避免 Let's Encrypt 速率限制
+            - module: acme
+              email: admin@yingsun.dpdns.org # 建议填写真实邮箱
   http:
     servers:
       "wss_server":
