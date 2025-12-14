@@ -344,7 +344,7 @@ func (s *OutlineServer) runConfig(config Config) (func() error, error) {
 						go service.PacketServe(pc, func(ctx context.Context, conn net.Conn) {
 							associationHandler.HandleAssociation(ctx, conn, s.serviceMetrics.AddOpenUDPAssociation(conn))
 						}, s.serverMetrics)
-					} else if cfg.WebsocketStream != nil {
+					} else if cfg.WebsocketStream != nil { // websocket-stream逻辑 其实就是ss协议被websocket包装了一下，还是可以配合caddy或者nginx等web服务器实现wss
 						if _, exists := webServers[cfg.WebsocketStream.WebServer]; !exists {
 							return fmt.Errorf("websocket-stream listener references unknown web server `%s`", cfg.WebsocketStream.WebServer)
 						}
@@ -365,7 +365,7 @@ func (s *OutlineServer) runConfig(config Config) (func() error, error) {
 						})
 						mux.Handle(cfg.WebsocketStream.Path, http.StripPrefix(cfg.WebsocketStream.Path, handlers.ProxyHeaders(handler)))
 						logger.Info("WebSocket stream service started.", "ID", cfg.WebsocketStream.WebServer, "path", cfg.WebsocketStream.Path)
-					} else if cfg.WebsocketPacket != nil {
+					} else if cfg.WebsocketPacket != nil { // websocket-packet逻辑 其实就是ss协议被websocket包装了一下，还是可以配合caddy或者nginx等web服务器实现wss
 						if _, exists := webServers[cfg.WebsocketPacket.WebServer]; !exists {
 							return fmt.Errorf("websocket-packet listener references unknown web server `%s`", cfg.WebsocketPacket.WebServer)
 						}
