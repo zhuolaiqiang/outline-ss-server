@@ -10,51 +10,51 @@ logging:
 apps:
   http:
     servers:
-      'wss_server':
+      "wss_server":
         listen:
-        - ":443"
+          - ":443"
         routes:
-        - match:
-          - host:
-            - example.com
-          handle:
-          - handler: subroute
-            routes:
-            - match:
-              - path:
-                - "/SECRET/tcp"  # WSS 路径 (TCP 流量)
-              handle:
-              - handler: websocket2layer4
-                type: stream
-                connection_handler: ss1
-            - match:
-              - path:
-                - "/SECRET/udp"  # WSS 路径 (UDP 流量)
-              handle:
-              - handler: websocket2layer4
-                type: packet
-                connection_handler: ss1
+          - match:
+              - host:
+                  - os1.yingsun.dpdns.org
+            handle:
+              - handler: subroute
+                routes:
+                  - match:
+                      - path:
+                          - "/wss/tcp" # WSS 路径 (TCP 流量)
+                    handle:
+                      - handler: websocket2layer4
+                        type: stream
+                        connection_handler: ss1
+                  - match:
+                      - path:
+                          - "/wss/udp" # WSS 路径 (UDP 流量)
+                    handle:
+                      - handler: websocket2layer4
+                        type: packet
+                        connection_handler: ss1
 
   # (可选) 同时开启直连监听
   layer4:
     servers:
-      'direct':
+      "direct":
         listen:
-        - tcp/[::]:9000
-        - udp/[::]:9000
+          - tcp/[::]:9000
+          - udp/[::]:9000
         routes:
-        - handle:
-          - handler: outline
-            connection_handler: ss1
+          - handle:
+              - handler: outline
+                connection_handler: ss1
 
   outline:
     shadowsocks:
       replay_history: 10000
     connection_handlers:
-    - name: ss1
-      handle:
-        handler: shadowsocks
-        keys:
-        - id: user-0
-          cipher: chacha20-ietf-poly1305
-          secret: Secret0
+      - name: ss1
+        handle:
+          handler: shadowsocks
+          keys:
+            - id: user-0
+              cipher: chacha20-ietf-poly1305
+              secret: Secret0
