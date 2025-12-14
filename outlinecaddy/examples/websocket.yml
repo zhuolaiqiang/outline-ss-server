@@ -65,7 +65,7 @@ apps:
       '1':
         listen:
         - tcp/[::]:9000
-        - udp/[::]:9000
+        - udp/[::]:8000
         routes:
         - handle:
           - handler: outline
