@@ -24,18 +24,32 @@ apps:
     servers:
       '1':
         listen:
-        - ":8000"
+        - ":443"
         routes:
+          #        - match:
+          #          - host:
+          #              - "os1.yingsun.dpdns.org"
+          #            path:
+          #              - "/"
+          #          handle:
+          #          - handler: static_response
+          #            status_code: 200
+          #            body: "OK"
+
         - match:
-          - path:
-            - "/SECRET/tcp"  # Prevent probing by serving under a secret path.
+          - host:
+              - "os1.yingsun.dpdns.org"
+            path:
+              - "/SECRET/tcp"  # Prevent probing by serving under a secret path.
           handle:
           - handler: websocket2layer4
             type: stream
             connection_handler: ss1
         - match:
-          - path:
-            - "/SECRET/udp"  # Prevent probing by serving under a secret path.
+          - host:
+              - "os1.yingsun.dpdns.org"
+            path:
+              - "/SECRET/udp"  # Prevent probing by serving under a secret path.
           handle:
           - handler: websocket2layer4
             type: packet
