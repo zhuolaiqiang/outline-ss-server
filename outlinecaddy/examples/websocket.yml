@@ -16,7 +16,7 @@
 logging:
   logs:
     default:
-      level: ERROR
+      level: ERROR # 要看详细日志 改为DEBUG
       encoder:
         format: console
 apps:
@@ -78,8 +78,9 @@ apps:
     servers:
       '1':
         listen:
-        - tcp/[::]:9000
-        - udp/[::]:443
+        - tcp/[::]:9000 # 启动纯outline服务
+        - udp/[::]:9000 # 启动纯outline服务
+        - udp/[::]:443 # 为了wss+ss，客户端即使配置了tls+443 但是udp还是走纯ss协议，没有走wss+ss
         routes:
         - handle:
           - handler: outline
@@ -98,3 +99,5 @@ apps:
         - id: user-1
           cipher: chacha20-ietf-poly1305
           secret: Secret1
+
+
