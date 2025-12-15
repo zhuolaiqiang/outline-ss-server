@@ -16,7 +16,7 @@
 logging:
   logs:
     default:
-      level: DEBUG
+      level: ERROR
       encoder:
         format: console
 apps:
@@ -79,7 +79,7 @@ apps:
       '1':
         listen:
         - tcp/[::]:9000
-        - udp/[::]:8000
+        - udp/[::]:443
         routes:
         - handle:
           - handler: outline
