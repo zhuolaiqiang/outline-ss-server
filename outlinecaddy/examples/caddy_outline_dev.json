@@ -1,0 +1,127 @@
+{
+	"apps": {
+		"http": {
+			"servers": {
+				"1": {
+					"client_ip_headers": [
+						"X-Forwarded-For",
+						"X-Original-Forwarded-For",
+						"Forwarded-For",
+						"Forwarded",
+						"Client-IP",
+						"CF-Connecting-IP",
+						"X-Real-IP",
+						"X-Client-IP",
+						"True-Client-IP"
+					],
+					"listen": [
+						":443"
+					],
+					"routes": [
+						{
+							"handle": [
+								{
+									"connection_handler": "ss1",
+									"handler": "websocket2layer4",
+									"type": "stream"
+								}
+							],
+							"match": [
+								{
+									"host": [
+										"os1.yingsun.dpdns.org"
+									],
+									"path": [
+										"/SECRET/tcp"
+									]
+								}
+							]
+						},
+						{
+							"handle": [
+								{
+									"connection_handler": "ss1",
+									"handler": "websocket2layer4",
+									"type": "packet"
+								}
+							],
+							"match": [
+								{
+									"host": [
+										"os1.yingsun.dpdns.org"
+									],
+									"path": [
+										"/SECRET/udp"
+									]
+								}
+							]
+						}
+					],
+					"trusted_proxies": {
+						"ranges": [
+							"127.0.0.1",
+							"::1"
+						],
+						"source": "static"
+					}
+				}
+			}
+		},
+		"layer4": {
+			"servers": {
+				"1": {
+					"listen": [
+						"tcp/[::]:9000",
+						"udp/[::]:9000",
+						"udp/[::]:443"
+					],
+					"routes": [
+						{
+							"handle": [
+								{
+									"connection_handler": "ss1",
+									"handler": "outline"
+								}
+							]
+						}
+					]
+				}
+			}
+		},
+		"outline": {
+			"connection_handlers": [
+				{
+					"handle": {
+						"handler": "shadowsocks",
+						"keys": [
+							{
+								"cipher": "chacha20-ietf-poly1305",
+								"id": "user-0",
+								"secret": "Secret0"
+							},
+							{
+								"cipher": "chacha20-ietf-poly1305",
+								"id": "user-1",
+								"secret": "Secret1"
+							}
+						]
+					},
+					"name": "ss1"
+				}
+			],
+			"shadowsocks": {
+				"replay_history": 10000
+			}
+		}
+	},
+	"logging": {
+		"logs": {
+			"default": {
+				"encoder": {
+					"format": "console"
+				},
+				"level": "ERROR"
+			}
+		}
+	}
+}
