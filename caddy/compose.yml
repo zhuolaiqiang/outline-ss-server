@@ -1,0 +1,15 @@
+services:
+  caddy:
+    image: caddy
+    restart: unless-stopped
+    ports: 
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+      - "2019:2019"
+    volumes:
+      - ./conf:/etc/caddy
+      - ./site:/srv
+      - ./data:/data
+      - ./config:/config
+    command: caddy run --config /etc/caddy/caddy.json

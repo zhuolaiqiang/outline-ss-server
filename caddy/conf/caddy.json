@@ -1,0 +1,26 @@
+{
+  "admin": {
+    "disabled": false,
+     "listen": ":2019"
+  },
+  "apps": {
+    "http": {
+      "servers": {
+        "default": {
+          "listen": [":80"],
+          "routes": [
+            {
+              "match": [{"host": ["*"]}],
+              "handle": [
+                {
+                  "handler": "static_response",
+		  "body": "Hello, world!!!!"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}
