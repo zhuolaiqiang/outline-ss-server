@@ -126,5 +126,6 @@
 				"level": "DEBUG"
 			}
 		}
-	}
+	},
+	"debug": true
 }
