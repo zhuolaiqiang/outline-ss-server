@@ -1,4 +1,7 @@
 {
+	"admin": {
+		"disabled": true
+	},
 	"apps": {
 		"http": {
 			"servers": {
@@ -15,7 +18,7 @@
 						"True-Client-IP"
 					],
 					"listen": [
-						":443"
+						":80"
 					],
 					"routes": [
 						{
@@ -73,7 +76,7 @@
 					"listen": [
 						"tcp/[::]:9000",
 						"udp/[::]:9000",
-						"udp/[::]:443"
+						"udp/[::]:80"
 					],
 					"routes": [
 						{
@@ -120,7 +123,7 @@
 				"encoder": {
 					"format": "console"
 				},
-				"level": "ERROR"
+				"level": "DEBUG"
 			}
 		}
 	}
